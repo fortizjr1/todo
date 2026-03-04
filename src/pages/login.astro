@@ -1,0 +1,136 @@
+---
+import AuthLayout from '../layouts/AuthLayout.astro';
+---
+
+<AuthLayout title="Login - Task Manager">
+  <div class="min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md">
+      <div class="border-2 border-black p-8">
+        <h1 class="font-mono text-3xl font-bold mb-2 tracking-tight">
+          TASK<span class="text-accent">.MANAGER</span>
+        </h1>
+        <p class="font-mono text-sm text-gray-600 mb-8 border-b-2 border-black pb-4">
+          // ENTER CREDENTIALS
+        </p>
+
+        <form id="login-form" class="space-y-4">
+          <div>
+            <label class="font-mono text-xs uppercase block mb-1" for="email">
+              Username / Email
+            </label>
+            <input
+              type="text"
+              id="email"
+              name="email"
+              required
+              class="w-full border-2 border-black p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2"
+              placeholder="enter_username"
+            />
+          </div>
+
+          <div>
+            <label class="font-mono text-xs uppercase block mb-1" for="password">
+              Password
+            </label>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              required
+              class="w-full border-2 border-black p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2"
+              placeholder="********"
+            />
+          </div>
+
+          <div>
+            <label class="font-mono text-xs uppercase block mb-1" for="username-register">
+              Username (register only)
+            </label>
+            <input
+              type="text"
+              id="username-register"
+              name="username"
+              class="w-full border-2 border-black p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2"
+              placeholder="new_username"
+            />
+          </div>
+
+          <div class="flex gap-4 pt-2">
+            <button
+              type="submit"
+              name="action"
+              value="login"
+              class="flex-1 bg-black text-white font-mono text-sm uppercase py-3 px-4 hover:bg-accent transition-colors"
+            >
+              Login
+            </button>
+            <button
+              type="submit"
+              name="action"
+              value="register"
+              class="flex-1 border-2 border-black font-mono text-sm uppercase py-3 px-4 hover:bg-gray-100 transition-colors"
+            >
+              Register
+            </button>
+          </div>
+
+          <div id="error-message" class="hidden font-mono text-xs text-red-600 mt-4 p-2 bg-red-50 border border-red-600"></div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    import { supabase } from '../lib/supabase';
+
+    const form = document.getElementById('login-form') as HTMLFormElement;
+    const errorDiv = document.getElementById('error-message');
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const formData = new FormData(form);
+      const email = formData.get('email') as string;
+      const password = formData.get('password') as string;
+      const username = formData.get('username') as string;
+      const action = formData.get('action') as string;
+
+      if (errorDiv) {
+        errorDiv.classList.add('hidden');
+        errorDiv.textContent = '';
+      }
+
+      try {
+        if (action === 'register') {
+          if (!username) {
+            throw new Error('Username is required for registration');
+          }
+          
+          const { error } = await supabase.auth.signUp({
+            email: email.includes('@') ? email : `${email}@taskmanager.local`,
+            password,
+            options: { data: { username } }
+          });
+          
+          if (error) throw error;
+          
+          alert('Registration successful! Please check your email to verify, or login if auto-confirmed.');
+        } else {
+          const { error } = await supabase.auth.signInWithPassword({
+            email: email.includes('@') ? email : `${email}@taskmanager.local`,
+            password
+          });
+          
+          if (error) throw error;
+          
+          window.location.href = '/dashboard';
+        }
+      } catch (err: any) {
+        if (errorDiv) {
+          errorDiv.classList.remove('hidden');
+          errorDiv.textContent = `ERROR: ${err.message}`;
+        }
+      }
+    });
+  </script>
+</AuthLayout>

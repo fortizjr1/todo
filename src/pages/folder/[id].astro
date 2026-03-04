@@ -1,0 +1,446 @@
+---
+export const prerender = false;
+import BaseLayout from '../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Folder - Task Manager">
+  <div class="min-h-screen flex">
+    <!-- Sidebar -->
+    <aside class="w-64 border-r-2 border-black flex flex-col">
+      <div class="p-4 border-b-2 border-black">
+        <h1 class="font-mono text-xl font-bold tracking-tight">
+          TASK<span class="text-accent">.MANAGER</span>
+        </h1>
+      </div>
+      
+      <nav class="flex-1 p-4">
+        <div class="font-mono text-xs uppercase text-gray-500 mb-2">Navigation</div>
+        <ul class="space-y-2">
+          <li>
+            <a href="/dashboard" class="block font-mono text-sm py-2 px-3 hover:bg-gray-100">
+              ← Dashboard
+            </a>
+          </li>
+        </ul>
+      </nav>
+      
+      <div class="p-4 border-t-2 border-black">
+        <button
+          id="logout-btn"
+          class="w-full font-mono text-sm uppercase py-2 border-2 border-black hover:bg-black hover:text-white transition-colors"
+        >
+          Logout
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6 overflow-auto">
+      <div class="mb-6 flex items-center justify-between">
+        <div>
+          <a href="/dashboard" class="font-mono text-sm text-gray-500 hover:text-accent">← Back to Dashboard</a>
+          <h2 class="font-mono text-2xl font-bold mt-1" id="folder-title">LOADING...</h2>
+          <p class="font-mono text-sm text-gray-500" id="folder-role"></p>
+        </div>
+        <div class="flex gap-2">
+          {/*
+          <button
+            id="manage-members"
+            class="font-mono text-sm uppercase py-2 px-4 border-2 border-black hover:bg-accent hover:border-accent hover:text-white transition-colors"
+          >
+            Members
+          </button>
+          */}
+          {/*
+          <button
+            id="delete-folder"
+            class="font-mono text-sm uppercase py-2 px-4 border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white transition-colors"
+          >
+            Delete
+          </button>
+          */}
+        </div>
+      </div>
+
+      <!-- Add Task Section -->
+      <section class="mb-8">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-mono text-lg font-bold border-b-2 border-black pb-1">
+            TASKS
+          </h3>
+          <button
+            id="add-task"
+            class="font-mono text-sm uppercase py-2 px-4 border-2 border-black hover:bg-accent hover:border-accent hover:text-white transition-colors"
+          >
+            + Add Task
+          </button>
+        </div>
+        
+        <div id="tasks-list" class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <!-- Tasks will be loaded here -->
+        </div>
+        
+        <div id="tasks-empty" class="hidden p-8 border-2 border-dashed border-gray-400 text-center">
+          <p class="font-mono text-sm text-gray-500">NO TASKS IN THIS FOLDER</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Task Modal -->
+  <div id="task-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div class="bg-white border-2 border-black w-full max-w-lg mx-4 max-h-[90vh] overflow-auto">
+      <div class="p-4 border-b-2 border-black">
+        <h3 class="font-mono text-lg font-bold" id="task-modal-title">ADD TASK</h3>
+      </div>
+      
+      <form id="task-form" class="p-4 space-y-4">
+        <input type="hidden" id="task-id" />
+        <input type="hidden" id="task-folder-id" />
+        
+        <div>
+          <label class="font-mono text-xs uppercase block mb-1" for="task-title">
+            Title *
+          </label>
+          <input
+            type="text"
+            id="task-title"
+            required
+            class="w-full border-2 border-black p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+            placeholder="Task title"
+          />
+        </div>
+        
+        <div>
+          <label class="font-mono text-xs uppercase block mb-1" for="task-description">
+            Description
+          </label>
+          <textarea
+            id="task-description"
+            rows="3"
+            class="w-full border-2 border-black p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-accent resize-none"
+            placeholder="Task description"
+          ></textarea>
+        </div>
+        
+        <div>
+          <label class="font-mono text-xs uppercase block mb-1" for="task-due-date">
+            Due Date *
+          </label>
+          <input
+            type="date"
+            id="task-due-date"
+            required
+            class="w-full border-2 border-black p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+          />
+        </div>
+        
+        <div>
+          <label class="font-mono text-xs uppercase block mb-1" for="task-image">
+            Image Attachment
+          </label>
+          <div class="flex items-center gap-3">
+            <label class="cursor-pointer font-mono text-sm uppercase py-2 px-4 border-2 border-black hover:bg-gray-100 transition-colors inline-block">
+              Choose File
+              <input
+                type="file"
+                id="task-image"
+                accept="image/*"
+                class="hidden"
+              />
+            </label>
+            <span id="file-name" class="font-mono text-xs text-gray-500">No file chosen</span>
+          </div>
+          <div id="image-preview" class="hidden mt-3">
+            <img id="preview-img" class="max-w-full max-h-32 border border-black" />
+            <button type="button" id="remove-image" class="font-mono text-xs text-red-600 mt-1">Remove</button>
+          </div>
+        </div>
+        
+        <div class="flex gap-3 pt-2">
+          <button
+            type="submit"
+            class="flex-1 bg-black text-white font-mono text-sm uppercase py-3 hover:bg-accent transition-colors"
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            id="cancel-task"
+            class="flex-1 border-2 border-black font-mono text-sm uppercase py-3 hover:bg-gray-100 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    import { supabase } from '../../lib/supabase';
+
+    let currentUser: any = null;
+    let selectedImage: File | null = null;
+    let folderId: string | null = null;
+    let folderData: any = null;
+
+    // Get folder ID from URL
+    const pathParts = window.location.pathname.split('/');
+    folderId = pathParts[pathParts.length - 1];
+
+    // Check auth and load data
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        window.location.href = '/login';
+        return;
+      }
+
+      currentUser = session.user;
+
+      // Load folder info
+      const { data: folder, error } = await supabase
+        .from('folders')
+        .select('*')
+        .eq('id', folderId)
+        .single();
+
+      if (error || !folder) {
+        window.location.href = '/dashboard';
+        return;
+      }
+
+      folderData = folder;
+      
+      // Check access
+      const { data: membership } = await supabase
+        .from('folder_members')
+        .select('role')
+        .eq('folder_id', folderId)
+        .eq('user_id', currentUser.id)
+        .single();
+
+      const isOwner = folder.owner_id === currentUser.id;
+      
+      if (!membership && !isOwner) {
+        window.location.href = '/dashboard';
+        return;
+      }
+
+      document.getElementById('folder-title')!.textContent = folder.name;
+      document.getElementById('folder-role')!.textContent = isOwner ? 'Owner' : `Member (${membership?.role || 'member'})`;
+      (document.getElementById('task-folder-id') as HTMLInputElement).value = folderId!;
+
+      await loadTasks();
+    }
+
+    // Load tasks for this folder
+    async function loadTasks() {
+      const { data: tasks, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('folder_id', folderId)
+        .order('due_date', { ascending: true });
+
+      if (error) {
+        console.error('Error loading tasks:', error);
+        return;
+      }
+
+      renderTasks(tasks || []);
+    }
+
+    // Render tasks
+    function renderTasks(tasks: any[]) {
+      const container = document.getElementById('tasks-list')!;
+      const empty = document.getElementById('tasks-empty')!;
+
+      if (tasks.length === 0) {
+        container.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+
+      empty.classList.add('hidden');
+      container.innerHTML = tasks.map(task => `
+        <div class="border-2 border-black p-4 hover:shadow-[4px_4px_0px_0px_rgba(0,102,255,1)] transition-shadow cursor-pointer task-card"
+             data-task-id="${task.id}">
+          <div class="flex items-start justify-between mb-2">
+            <h4 class="font-mono font-bold text-sm">${escapeHtml(task.title)}</h4>
+            <input 
+              type="checkbox" 
+              ${task.completed ? 'checked' : ''}
+              class="task-checkbox w-4 h-4 accent-accent"
+              data-task-id="${task.id}"
+            />
+          </div>
+          ${task.description ? `<p class="font-mono text-xs text-gray-600 mb-2 line-clamp-2">${escapeHtml(task.description)}</p>` : ''}
+          <div class="flex items-center justify-between">
+            <span class="font-mono text-xs ${new Date(task.due_date) < new Date() ? 'text-red-600' : ''}">
+              DUE: ${task.due_date}
+            </span>
+            ${task.image_url ? '<span class="font-mono text-xs">📎</span>' : ''}
+          </div>
+          ${task.image_url ? `
+            <div class="mt-2">
+              <img src="${task.image_url}" class="w-full h-24 object-cover border border-black" />
+            </div>
+          ` : ''}
+        </div>
+      `).join('');
+
+      // Add click handlers for editing
+      container.querySelectorAll('.task-card').forEach(card => {
+        card.addEventListener('click', (e) => {
+          if ((e.target as HTMLElement).classList.contains('task-checkbox')) return;
+          const taskId = (card as HTMLElement).dataset.taskId;
+          editTask(taskId!);
+        });
+      });
+
+      // Add checkbox handlers
+      container.querySelectorAll('.task-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', async (e) => {
+          const taskId = (e.target as HTMLInputElement).dataset.taskId;
+          const completed = (e.target as HTMLInputElement).checked;
+          await supabase.from('tasks').update({ completed }).eq('id', taskId);
+        });
+      });
+    }
+
+    // Edit task
+    async function editTask(taskId: string) {
+      const { data: task } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('id', taskId)
+        .single();
+
+      if (!task) return;
+
+      document.getElementById('task-modal-title')!.textContent = 'EDIT TASK';
+      (document.getElementById('task-id') as HTMLInputElement).value = task.id;
+      (document.getElementById('task-title') as HTMLInputElement).value = task.title;
+      (document.getElementById('task-description') as HTMLInputElement).value = task.description || '';
+      (document.getElementById('task-due-date') as HTMLInputElement).value = task.due_date;
+      
+      selectedImage = null;
+      if (task.image_url) {
+        document.getElementById('image-preview')!.classList.remove('hidden');
+        (document.getElementById('preview-img') as HTMLImageElement).src = task.image_url;
+        (document.getElementById('file-name') as HTMLElement).textContent = 'Existing image';
+      } else {
+        document.getElementById('image-preview')!.classList.add('hidden');
+        (document.getElementById('file-name') as HTMLElement).textContent = 'No file chosen';
+      }
+
+      document.getElementById('task-modal')!.classList.remove('hidden');
+    }
+
+    // Helper: escape HTML
+    function escapeHtml(text: string): string {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Event Listeners
+    document.getElementById('logout-btn')?.addEventListener('click', async () => {
+      await supabase.auth.signOut();
+      window.location.href = '/login';
+    });
+
+    document.getElementById('add-task')?.addEventListener('click', () => {
+      document.getElementById('task-modal-title')!.textContent = 'ADD TASK';
+      (document.getElementById('task-id') as HTMLInputElement).value = '';
+      (document.getElementById('task-form') as HTMLFormElement).reset();
+      selectedImage = null;
+      document.getElementById('image-preview')!.classList.add('hidden');
+      document.getElementById('task-modal')!.classList.remove('hidden');
+    });
+
+    document.getElementById('cancel-task')?.addEventListener('click', () => {
+      document.getElementById('task-modal')!.classList.add('hidden');
+    });
+
+    // File input handler
+    document.getElementById('task-image')?.addEventListener('change', (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        selectedImage = file;
+        (document.getElementById('file-name') as HTMLElement).textContent = file.name;
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          document.getElementById('image-preview')!.classList.remove('hidden');
+          (document.getElementById('preview-img') as HTMLImageElement).src = e.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    document.getElementById('remove-image')?.addEventListener('click', () => {
+      selectedImage = null;
+      (document.getElementById('task-image') as HTMLInputElement).value = '';
+      document.getElementById('image-preview')!.classList.add('hidden');
+      (document.getElementById('file-name') as HTMLElement).textContent = 'No file chosen';
+    });
+
+    // Task form submit
+    document.getElementById('task-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const taskId = (document.getElementById('task-id') as HTMLInputElement).value;
+      const title = (document.getElementById('task-title') as HTMLInputElement).value;
+      const description = (document.getElementById('task-description') as HTMLInputElement).value;
+      const dueDate = (document.getElementById('task-due-date') as HTMLInputElement).value;
+
+      let imageUrl: string | null = null;
+
+      // Upload image if selected
+      if (selectedImage) {
+        const fileName = `${currentUser.id}/${Date.now()}-${selectedImage.name}`;
+        const { data, error } = await supabase.storage
+          .from('task-images')
+          .upload(fileName, selectedImage);
+
+        if (!error && data) {
+          const { data: { publicUrl } } = supabase.storage
+            .from('task-images')
+            .getPublicUrl(fileName);
+          imageUrl = publicUrl;
+        }
+      }
+
+      const taskData: any = {
+        user_id: currentUser.id,
+        title,
+        description: description || null,
+        due_date: dueDate,
+        folder_id: folderId
+      };
+
+      if (imageUrl) {
+        taskData.image_url = imageUrl;
+      }
+
+      if (taskId) {
+        // Update existing task
+        if (!imageUrl) {
+          delete taskData.image_url;
+        }
+        await supabase.from('tasks').update(taskData).eq('id', taskId);
+      } else {
+        // Create new task
+        await supabase.from('tasks').insert(taskData);
+      }
+
+      document.getElementById('task-modal')!.classList.add('hidden');
+      await loadTasks();
+    });
+
+    // Initialize
+    init();
+  </script>
+</BaseLayout>

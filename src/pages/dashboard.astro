@@ -1,0 +1,742 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Dashboard - Task Manager">
+  <div class="min-h-screen flex">
+    <!-- Sidebar -->
+    <aside class="w-64 border-r-2 border-black flex flex-col">
+      <div class="p-4 border-b-2 border-black">
+        <h1 class="font-mono text-xl font-bold tracking-tight">
+          TASK<span class="text-accent">.MANAGER</span>
+        </h1>
+      </div>
+      
+      <nav class="flex-1 p-4">
+        <div class="font-mono text-xs uppercase text-gray-500 mb-2">Navigation</div>
+        <ul class="space-y-2">
+          <li>
+            <a href="/dashboard" class="block font-mono text-sm py-2 px-3 bg-black text-white">
+              → Dashboard
+            </a>
+          </li>
+        </ul>
+      </nav>
+      
+      <div class="p-4 border-t-2 border-black">
+        <button
+          id="logout-btn"
+          class="w-full font-mono text-sm uppercase py-2 border-2 border-black hover:bg-black hover:text-white transition-colors"
+        >
+          Logout
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6 overflow-auto">
+      <div class="mb-6">
+        <h2 class="font-mono text-2xl font-bold mb-1">DASHBOARD</h2>
+        <p class="font-mono text-sm text-gray-500" id="user-info">Loading...</p>
+      </div>
+
+      <!-- My Workspace Section -->
+      <section class="mb-8">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-mono text-lg font-bold border-b-2 border-black pb-1">
+            MY WORKSPACE
+          </h3>
+          <button
+            id="add-task-workspace"
+            class="font-mono text-sm uppercase py-2 px-4 border-2 border-black hover:bg-accent hover:border-accent hover:text-white transition-colors"
+          >
+            + Add Task
+          </button>
+        </div>
+        
+        <div id="workspace-tasks" class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <!-- Tasks will be loaded here -->
+        </div>
+        
+        <div id="workspace-empty" class="hidden p-8 border-2 border-dashed border-gray-400 text-center">
+          <p class="font-mono text-sm text-gray-500">NO TASKS IN YOUR WORKSPACE</p>
+        </div>
+      </section>
+
+      <!-- Shared Folders Section -->
+      <section>
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-mono text-lg font-bold border-b-2 border-black pb-1">
+            SHARED FOLDERS
+          </h3>
+          <button
+            id="add-folder"
+            class="font-mono text-sm uppercase py-2 px-4 border-2 border-black hover:bg-accent hover:border-accent hover:text-white transition-colors"
+          >
+            + New Folder
+          </button>
+        </div>
+        
+        <div id="folders-list" class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <!-- Folders will be loaded here -->
+        </div>
+        
+        <div id="folders-empty" class="hidden p-8 border-2 border-dashed border-gray-400 text-center">
+          <p class="font-mono text-sm text-gray-500">NO SHARED FOLDERS</p>
+          <p class="font-mono text-xs text-gray-400 mt-2">Create a folder or accept an invitation</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Task Modal -->
+  <div id="task-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div class="bg-white border-2 border-black w-full max-w-lg mx-4 max-h-[90vh] overflow-auto">
+      <div class="p-4 border-b-2 border-black">
+        <h3 class="font-mono text-lg font-bold" id="task-modal-title">ADD TASK</h3>
+      </div>
+      
+      <form id="task-form" class="p-4 space-y-4">
+        <input type="hidden" id="task-id" />
+        <input type="hidden" id="task-folder-id" />
+        
+        <div>
+          <label class="font-mono text-xs uppercase block mb-1" for="task-title">
+            Title *
+          </label>
+          <input
+            type="text"
+            id="task-title"
+            required
+            class="w-full border-2 border-black p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+            placeholder="Task title"
+          />
+        </div>
+        
+        <div>
+          <label class="font-mono text-xs uppercase block mb-1" for="task-description">
+            Description
+          </label>
+          <textarea
+            id="task-description"
+            rows="3"
+            class="w-full border-2 border-black p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-accent resize-none"
+            placeholder="Task description"
+          ></textarea>
+        </div>
+        
+        <div>
+          <label class="font-mono text-xs uppercase block mb-1" for="task-due-date">
+            Due Date *
+          </label>
+          <input
+            type="date"
+            id="task-due-date"
+            required
+            class="w-full border-2 border-black p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+          />
+        </div>
+        
+        <div>
+          <label class="font-mono text-xs uppercase block mb-1" for="task-image">
+            Image Attachment
+          </label>
+          <div class="flex items-center gap-3">
+            <label class="cursor-pointer font-mono text-sm uppercase py-2 px-4 border-2 border-black hover:bg-gray-100 transition-colors inline-block">
+              Choose File
+              <input
+                type="file"
+                id="task-image"
+                accept="image/*"
+                class="hidden"
+              />
+            </label>
+            <span id="file-name" class="font-mono text-xs text-gray-500">No file chosen</span>
+          </div>
+          <div id="image-preview" class="hidden mt-3">
+            <img id="preview-img" class="max-w-full max-h-32 border border-black" />
+            <button type="button" id="remove-image" class="font-mono text-xs text-red-600 mt-1">Remove</button>
+          </div>
+        </div>
+        
+        <div class="flex gap-3 pt-2">
+          <button
+            type="submit"
+            class="flex-1 bg-black text-white font-mono text-sm uppercase py-3 hover:bg-accent transition-colors"
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            id="cancel-task"
+            class="flex-1 border-2 border-black font-mono text-sm uppercase py-3 hover:bg-gray-100 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Folder Modal -->
+  <div id="folder-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div class="bg-white border-2 border-black w-full max-w-md mx-4">
+      <div class="p-4 border-b-2 border-black">
+        <h3 class="font-mono text-lg font-bold" id="folder-modal-title">NEW FOLDER</h3>
+      </div>
+      
+      <form id="folder-form" class="p-4 space-y-4">
+        <input type="hidden" id="folder-id" />
+        
+        <div>
+          <label class="font-mono text-xs uppercase block mb-1" for="folder-name">
+            Folder Name *
+          </label>
+          <input
+            type="text"
+            id="folder-name"
+            required
+            class="w-full border-2 border-black p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+            placeholder="Project name"
+          />
+        </div>
+        
+        <div class="flex gap-3 pt-2">
+          <button
+            type="submit"
+            class="flex-1 bg-black text-white font-mono text-sm uppercase py-3 hover:bg-accent transition-colors"
+          >
+            Create
+          </button>
+          <button
+            type="button"
+            id="cancel-folder"
+            class="flex-1 border-2 border-black font-mono text-sm uppercase py-3 hover:bg-gray-100 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Member Modal -->
+  <div id="member-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div class="bg-white border-2 border-black w-full max-w-md mx-4 max-h-[80vh] overflow-auto">
+      <div class="p-4 border-b-2 border-black">
+        <h3 class="font-mono text-lg font-bold">FOLDER MEMBERS</h3>
+      </div>
+      
+      <div class="p-4">
+        <div class="mb-4">
+          <label class="font-mono text-xs uppercase block mb-1" for="member-email">
+            Add Member (email or username)
+          </label>
+          <div class="flex gap-2">
+            <input
+              type="text"
+              id="member-email"
+              class="flex-1 border-2 border-black p-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+              placeholder="user@example.com"
+            />
+            <button
+              type="button"
+              id="add-member-btn"
+              class="font-mono text-xs uppercase py-2 px-3 border-2 border-black hover:bg-accent hover:border-accent hover:text-white transition-colors"
+            >
+              Add
+            </button>
+          </div>
+        </div>
+        
+        <div id="members-list" class="space-y-2">
+          <!-- Members will be loaded here -->
+        </div>
+        
+        <button
+          type="button"
+          id="close-member-modal"
+          class="w-full mt-4 border-2 border-black font-mono text-sm uppercase py-2 hover:bg-gray-100 transition-colors"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    import { supabase } from '../lib/supabase';
+
+    let currentUser: any = null;
+    let selectedImage: File | null = null;
+    let currentFolderId: string | null = null;
+
+    // Check auth and load data
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        window.location.href = '/login';
+        return;
+      }
+
+      currentUser = session.user;
+      
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', currentUser.id)
+        .single();
+
+      document.getElementById('user-info')!.textContent = 
+        `USER: ${profile?.username || currentUser.email}`;
+
+      await loadWorkspaceTasks();
+      await loadFolders();
+    }
+
+    // Load personal workspace tasks (tasks without folder_id)
+    async function loadWorkspaceTasks() {
+      const { data: tasks, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .is('folder_id', null)
+        .order('due_date', { ascending: true });
+
+      if (error) {
+        console.error('Error loading tasks:', error);
+        return;
+      }
+
+      renderTasks(tasks || [], 'workspace-tasks', 'workspace-empty', null);
+    }
+
+    // Load folders user has access to
+    async function loadFolders() {
+      // Get owned folders
+      const { data: ownedFolders } = await supabase
+        .from('folders')
+        .select('*')
+        .eq('owner_id', currentUser.id)
+        .order('created_at', { ascending: false });
+
+      // Get folders where user is a member
+      const { data: memberFolders } = await supabase
+        .from('folder_members')
+        .select('folder_id, role, folders(id, name, owner_id, created_at)')
+        .eq('user_id', currentUser.id);
+
+      const folderIds = memberFolders?.map(m => m.folder_id) || [];
+      
+      let sharedFolders: any[] = [];
+      if (folderIds.length > 0) {
+        const { data } = await supabase
+          .from('folders')
+          .select('*')
+          .in('id', folderIds)
+          .order('created_at', { ascending: false });
+        sharedFolders = data || [];
+      }
+
+      const allFolders = [
+        ...(ownedFolders || []).map(f => ({ ...f, isOwner: true })),
+        ...sharedFolders.map(f => ({ ...f, isOwner: false }))
+      ];
+
+      renderFolders(allFolders);
+    }
+
+    // Render tasks
+    function renderTasks(tasks: any[], containerId: string, emptyId: string, folderId: string | null) {
+      const container = document.getElementById(containerId)!;
+      const empty = document.getElementById(emptyId)!;
+
+      if (tasks.length === 0) {
+        container.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+
+      empty.classList.add('hidden');
+      container.innerHTML = tasks.map(task => `
+        <div class="border-2 border-black p-4 hover:shadow-[4px_4px_0px_0px_rgba(0,102,255,1)] transition-shadow cursor-pointer task-card"
+             data-task-id="${task.id}"
+             data-folder-id="${folderId || ''}">
+          <div class="flex items-start justify-between mb-2">
+            <h4 class="font-mono font-bold text-sm">${escapeHtml(task.title)}</h4>
+            <input 
+              type="checkbox" 
+              ${task.completed ? 'checked' : ''}
+              class="task-checkbox w-4 h-4 accent-accent"
+              data-task-id="${task.id}"
+            />
+          </div>
+          ${task.description ? `<p class="font-mono text-xs text-gray-600 mb-2 line-clamp-2">${escapeHtml(task.description)}</p>` : ''}
+          <div class="flex items-center justify-between">
+            <span class="font-mono text-xs ${new Date(task.due_date) < new Date() ? 'text-red-600' : ''}">
+              DUE: ${task.due_date}
+            </span>
+            ${task.image_url ? '<span class="font-mono text-xs">📎</span>' : ''}
+          </div>
+          ${task.image_url ? `
+            <div class="mt-2">
+              <img src="${task.image_url}" class="w-full h-24 object-cover border border-black" />
+            </div>
+          ` : ''}
+        </div>
+      `).join('');
+
+      // Add click handlers for editing
+      container.querySelectorAll('.task-card').forEach(card => {
+        card.addEventListener('click', (e) => {
+          if ((e.target as HTMLElement).classList.contains('task-checkbox')) return;
+          const taskId = (card as HTMLElement).dataset.taskId;
+          const folderId = (card as HTMLElement).dataset.folderId || null;
+          editTask(taskId!, folderId);
+        });
+      });
+
+      // Add checkbox handlers
+      container.querySelectorAll('.task-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', async (e) => {
+          const taskId = (e.target as HTMLInputElement).dataset.taskId;
+          const completed = (e.target as HTMLInputElement).checked;
+          await supabase.from('tasks').update({ completed }).eq('id', taskId);
+        });
+      });
+    }
+
+    // Render folders
+    function renderFolders(folders: any[]) {
+      const container = document.getElementById('folders-list')!;
+      const empty = document.getElementById('folders-empty')!;
+
+      if (folders.length === 0) {
+        container.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+
+      empty.classList.add('hidden');
+      container.innerHTML = folders.map(folder => `
+        <div class="border-2 border-black p-4 hover:shadow-[4px_4px_0px_0px_rgba(0,102,255,1)] transition-shadow cursor-pointer folder-card"
+             data-folder-id="${folder.id}"
+             data-is-owner="${folder.isOwner}">
+          <div class="flex items-start justify-between mb-2">
+            <h4 class="font-mono font-bold text-sm">${escapeHtml(folder.name)}</h4>
+            ${folder.isOwner ? 
+              `<button class="members-btn font-mono text-xs border border-black px-2 hover:bg-accent hover:text-white" data-folder-id="${folder.id}">
+                👤
+              </button>` : ''}
+          </div>
+          <p class="font-mono text-xs text-gray-500">
+            ${folder.isOwner ? 'OWNER' : 'MEMBER'}
+          </p>
+        </div>
+      `).join('');
+
+      // Add click handlers
+      container.querySelectorAll('.folder-card').forEach(card => {
+        card.addEventListener('click', (e) => {
+          if ((e.target as HTMLElement).classList.contains('members-btn')) return;
+          const folderId = (card as HTMLElement).dataset.folderId;
+          window.location.href = `/folder/${folderId}`;
+        });
+      });
+
+      container.querySelectorAll('.members-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const folderId = (btn as HTMLElement).dataset.folderId;
+          await openMemberModal(folderId!);
+        });
+      });
+    }
+
+    // Edit task
+    async function editTask(taskId: string, folderId: string | null) {
+      const { data: task } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('id', taskId)
+        .single();
+
+      if (!task) return;
+
+      document.getElementById('task-modal-title')!.textContent = 'EDIT TASK';
+      (document.getElementById('task-id') as HTMLInputElement).value = task.id;
+      (document.getElementById('task-folder-id') as HTMLInputElement).value = folderId || '';
+      (document.getElementById('task-title') as HTMLInputElement).value = task.title;
+      (document.getElementById('task-description') as HTMLInputElement).value = task.description || '';
+      (document.getElementById('task-due-date') as HTMLInputElement).value = task.due_date;
+      
+      selectedImage = null;
+      if (task.image_url) {
+        document.getElementById('image-preview')!.classList.remove('hidden');
+        (document.getElementById('preview-img') as HTMLImageElement).src = task.image_url;
+        (document.getElementById('file-name') as HTMLElement).textContent = 'Existing image';
+      } else {
+        document.getElementById('image-preview')!.classList.add('hidden');
+        (document.getElementById('file-name') as HTMLElement).textContent = 'No file chosen';
+      }
+
+      document.getElementById('task-modal')!.classList.remove('hidden');
+    }
+
+    // Open member modal
+    async function openMemberModal(folderId: string) {
+      currentFolderId = folderId;
+      await loadMembers(folderId);
+      document.getElementById('member-modal')!.classList.remove('hidden');
+    }
+
+    // Load members
+    async function loadMembers(folderId: string) {
+      const { data: members } = await supabase
+        .from('folder_members')
+        .select('user_id, role, profiles(username)')
+        .eq('folder_id', folderId);
+
+      const { data: owner } = await supabase
+        .from('folders')
+        .select('owner_id, profiles(username)')
+        .eq('id', folderId)
+        .single();
+
+      const container = document.getElementById('members-list')!;
+      let html = '';
+
+      // Add owner
+      if (owner?.profiles?.username) {
+        html += `
+          <div class="flex items-center justify-between p-2 border border-black">
+            <span class="font-mono text-sm">${escapeHtml(owner.profiles.username)} (Owner)</span>
+          </div>
+        `;
+      }
+
+      // Add members
+      if (members && members.length > 0) {
+        for (const m of members) {
+          html += `
+            <div class="flex items-center justify-between p-2 border border-black">
+              <span class="font-mono text-sm">${escapeHtml(m.profiles?.username || m.user_id)} (${m.role})</span>
+              <button class="remove-member font-mono text-xs text-red-600 hover:underline" data-user-id="${m.user_id}">
+                Remove
+              </button>
+            </div>
+          `;
+        }
+      }
+
+      container.innerHTML = html || '<p class="font-mono text-sm text-gray-500">No additional members</p>';
+
+      // Add remove handlers
+      container.querySelectorAll('.remove-member').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const userId = (btn as HTMLElement).dataset.userId;
+          await supabase
+            .from('folder_members')
+            .delete()
+            .eq('folder_id', folderId)
+            .eq('user_id', userId);
+          await loadMembers(folderId);
+        });
+      });
+    }
+
+    // Helper: escape HTML
+    function escapeHtml(text: string): string {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Event Listeners
+    document.getElementById('logout-btn')?.addEventListener('click', async () => {
+      await supabase.auth.signOut();
+      window.location.href = '/login';
+    });
+
+    document.getElementById('add-task-workspace')?.addEventListener('click', () => {
+      document.getElementById('task-modal-title')!.textContent = 'ADD TASK';
+      (document.getElementById('task-id') as HTMLInputElement).value = '';
+      (document.getElementById('task-folder-id') as HTMLInputElement).value = '';
+      (document.getElementById('task-form') as HTMLFormElement).reset();
+      selectedImage = null;
+      document.getElementById('image-preview')!.classList.add('hidden');
+      document.getElementById('task-modal')!.classList.remove('hidden');
+    });
+
+    document.getElementById('add-folder')?.addEventListener('click', () => {
+      document.getElementById('folder-modal-title')!.textContent = 'NEW FOLDER';
+      (document.getElementById('folder-id') as HTMLInputElement).value = '';
+      (document.getElementById('folder-form') as HTMLFormElement).reset();
+      document.getElementById('folder-modal')!.classList.remove('hidden');
+    });
+
+    document.getElementById('cancel-task')?.addEventListener('click', () => {
+      document.getElementById('task-modal')!.classList.add('hidden');
+    });
+
+    document.getElementById('cancel-folder')?.addEventListener('click', () => {
+      document.getElementById('folder-modal')!.classList.add('hidden');
+    });
+
+    document.getElementById('close-member-modal')?.addEventListener('click', () => {
+      document.getElementById('member-modal')!.classList.add('hidden');
+    });
+
+    // File input handler
+    document.getElementById('task-image')?.addEventListener('change', (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        selectedImage = file;
+        (document.getElementById('file-name') as HTMLElement).textContent = file.name;
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          document.getElementById('image-preview')!.classList.remove('hidden');
+          (document.getElementById('preview-img') as HTMLImageElement).src = e.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    document.getElementById('remove-image')?.addEventListener('click', () => {
+      selectedImage = null;
+      (document.getElementById('task-image') as HTMLInputElement).value = '';
+      document.getElementById('image-preview')!.classList.add('hidden');
+      (document.getElementById('file-name') as HTMLElement).textContent = 'No file chosen';
+    });
+
+    // Task form submit
+    document.getElementById('task-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const taskId = (document.getElementById('task-id') as HTMLInputElement).value;
+      const folderId = (document.getElementById('task-folder-id') as HTMLInputElement).value || null;
+      const title = (document.getElementById('task-title') as HTMLInputElement).value;
+      const description = (document.getElementById('task-description') as HTMLInputElement).value;
+      const dueDate = (document.getElementById('task-due-date') as HTMLInputElement).value;
+
+      let imageUrl: string | null = null;
+
+      // Upload image if selected
+      if (selectedImage) {
+        const fileName = `${currentUser.id}/${Date.now()}-${selectedImage.name}`;
+        const { data, error } = await supabase.storage
+          .from('task-images')
+          .upload(fileName, selectedImage);
+
+        if (!error && data) {
+          const { data: { publicUrl } } = supabase.storage
+            .from('task-images')
+            .getPublicUrl(fileName);
+          imageUrl = publicUrl;
+        }
+      }
+
+      const taskData: any = {
+        user_id: currentUser.id,
+        title,
+        description: description || null,
+        due_date: dueDate,
+        folder_id: folderId || null
+      };
+
+      if (imageUrl) {
+        taskData.image_url = imageUrl;
+      }
+
+      if (taskId) {
+        // Update existing task
+        if (!imageUrl) {
+          delete taskData.image_url;
+        }
+        await supabase.from('tasks').update(taskData).eq('id', taskId);
+      } else {
+        // Create new task
+        await supabase.from('tasks').insert(taskData);
+      }
+
+      document.getElementById('task-modal')!.classList.add('hidden');
+      
+      if (folderId) {
+        window.location.href = `/folder/${folderId}`;
+      } else {
+        await loadWorkspaceTasks();
+      }
+    });
+
+    // Folder form submit
+    document.getElementById('folder-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const name = (document.getElementById('folder-name') as HTMLInputElement).value;
+
+      const { data, error } = await supabase
+        .from('folders')
+        .insert({
+          name,
+          owner_id: currentUser.id
+        })
+        .select()
+        .single();
+
+      if (!error && data) {
+        // Add owner as member
+        await supabase
+          .from('folder_members')
+          .insert({
+            folder_id: data.id,
+            user_id: currentUser.id,
+            role: 'admin'
+          });
+      }
+
+      document.getElementById('folder-modal')!.classList.add('hidden');
+      await loadFolders();
+    });
+
+    // Add member
+    document.getElementById('add-member-btn')?.addEventListener('click', async () => {
+      const email = (document.getElementById('member-email') as HTMLInputElement).value;
+      if (!email || !currentFolderId) return;
+
+      // Find user by email or username
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id')
+        .or(`username.eq.${email},email.eq.${email}`)
+        .limit(1);
+
+      if (!profiles || profiles.length === 0) {
+        alert('User not found');
+        return;
+      }
+
+      const userId = profiles[0].id;
+      
+      if (userId === currentUser.id) {
+        alert('You are already a member');
+        return;
+      }
+
+      await supabase
+        .from('folder_members')
+        .insert({
+          folder_id: currentFolderId,
+          user_id: userId,
+          role: 'member'
+        });
+
+      (document.getElementById('member-email') as HTMLInputElement).value = '';
+      await loadMembers(currentFolderId);
+    });
+
+    // Initialize
+    init();
+  </script>
+</BaseLayout>
