@@ -1,5 +1,7 @@
 ---
 import AuthLayout from '../layouts/AuthLayout.astro';
+
+const API_URL = import.meta.env.PUBLIC_API_URL || '/api';
 ---
 
 <AuthLayout title="Login - Task Manager">
@@ -16,15 +18,15 @@ import AuthLayout from '../layouts/AuthLayout.astro';
         <form id="login-form" class="space-y-4">
           <div>
             <label class="font-mono text-xs uppercase block mb-1" for="email">
-              Username / Email
+              Email
             </label>
             <input
-              type="text"
+              type="email"
               id="email"
               name="email"
               required
               class="w-full border-2 border-black p-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2"
-              placeholder="enter_username"
+              placeholder="email@example.com"
             />
           </div>
 
@@ -80,20 +82,30 @@ import AuthLayout from '../layouts/AuthLayout.astro';
     </div>
   </div>
 
-  <script>
-    import { supabase } from '../lib/supabase';
-
-    const form = document.getElementById('login-form') as HTMLFormElement;
+  <script define:vars={{ API_URL }}>
+    const form = document.getElementById('login-form');
     const errorDiv = document.getElementById('error-message');
+
+    function getApiUrl() {
+      return API_URL;
+    }
+
+    function saveToken(token) {
+      localStorage.setItem('auth_token', token);
+    }
+
+    function getToken() {
+      return localStorage.getItem('auth_token');
+    }
 
     form?.addEventListener('submit', async (e) => {
       e.preventDefault();
       
       const formData = new FormData(form);
-      const email = formData.get('email') as string;
-      const password = formData.get('password') as string;
-      const username = formData.get('username') as string;
-      const action = formData.get('action') as string;
+      const email = formData.get('email');
+      const password = formData.get('password');
+      const username = formData.get('username');
+      const action = formData.get('action');
 
       if (errorDiv) {
         errorDiv.classList.add('hidden');
@@ -106,26 +118,31 @@ import AuthLayout from '../layouts/AuthLayout.astro';
             throw new Error('Username is required for registration');
           }
           
-          const { error } = await supabase.auth.signUp({
-            email: email.includes('@') ? email : `${email}@taskmanager.local`,
-            password,
-            options: { data: { username } }
+          const res = await fetch(`${getApiUrl()}/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password, username })
           });
           
-          if (error) throw error;
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Registration failed');
           
-          alert('Registration successful! Please check your email to verify, or login if auto-confirmed.');
+          saveToken(data.token);
+          window.location.href = '/dashboard';
         } else {
-          const { error } = await supabase.auth.signInWithPassword({
-            email: email.includes('@') ? email : `${email}@taskmanager.local`,
-            password
+          const res = await fetch(`${getApiUrl()}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
           });
           
-          if (error) throw error;
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Login failed');
           
+          saveToken(data.token);
           window.location.href = '/dashboard';
         }
-      } catch (err: any) {
+      } catch (err) {
         if (errorDiv) {
           errorDiv.classList.remove('hidden');
           errorDiv.textContent = `ERROR: ${err.message}`;

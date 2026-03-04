@@ -1,6 +1,7 @@
 ---
-export const prerender = false;
 import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const API_URL = import.meta.env.PUBLIC_API_URL || '/api';
 ---
 
 <BaseLayout title="Folder - Task Manager">
@@ -36,34 +37,14 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
     <!-- Main Content -->
     <main class="flex-1 p-6 overflow-auto">
-      <div class="mb-6 flex items-center justify-between">
-        <div>
-          <a href="/dashboard" class="font-mono text-sm text-gray-500 hover:text-accent">← Back to Dashboard</a>
-          <h2 class="font-mono text-2xl font-bold mt-1" id="folder-title">LOADING...</h2>
-          <p class="font-mono text-sm text-gray-500" id="folder-role"></p>
-        </div>
-        <div class="flex gap-2">
-          {/*
-          <button
-            id="manage-members"
-            class="font-mono text-sm uppercase py-2 px-4 border-2 border-black hover:bg-accent hover:border-accent hover:text-white transition-colors"
-          >
-            Members
-          </button>
-          */}
-          {/*
-          <button
-            id="delete-folder"
-            class="font-mono text-sm uppercase py-2 px-4 border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white transition-colors"
-          >
-            Delete
-          </button>
-          */}
-        </div>
+      <div class="mb-6">
+        <a href="/dashboard" class="font-mono text-sm text-gray-500 hover:text-accent">← Back to Dashboard</a>
+        <h2 class="font-mono text-2xl font-bold mt-1" id="folder-title">LOADING...</h2>
+        <p class="font-mono text-sm text-gray-500" id="folder-role"></p>
       </div>
 
       <!-- Add Task Section -->
-      <section class="mb-8">
+      <section>
         <div class="flex items-center justify-between mb-4">
           <h3 class="font-mono text-lg font-bold border-b-2 border-black pb-1">
             TASKS
@@ -77,7 +58,6 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         </div>
         
         <div id="tasks-list" class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <!-- Tasks will be loaded here -->
         </div>
         
         <div id="tasks-empty" class="hidden p-8 border-2 border-dashed border-gray-400 text-center">
@@ -135,28 +115,6 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
           />
         </div>
         
-        <div>
-          <label class="font-mono text-xs uppercase block mb-1" for="task-image">
-            Image Attachment
-          </label>
-          <div class="flex items-center gap-3">
-            <label class="cursor-pointer font-mono text-sm uppercase py-2 px-4 border-2 border-black hover:bg-gray-100 transition-colors inline-block">
-              Choose File
-              <input
-                type="file"
-                id="task-image"
-                accept="image/*"
-                class="hidden"
-              />
-            </label>
-            <span id="file-name" class="font-mono text-xs text-gray-500">No file chosen</span>
-          </div>
-          <div id="image-preview" class="hidden mt-3">
-            <img id="preview-img" class="max-w-full max-h-32 border border-black" />
-            <button type="button" id="remove-image" class="font-mono text-xs text-red-600 mt-1">Remove</button>
-          </div>
-        </div>
-        
         <div class="flex gap-3 pt-2">
           <button
             type="submit"
@@ -176,87 +134,80 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     </div>
   </div>
 
-  <script>
-    import { supabase } from '../../lib/supabase';
-
-    let currentUser: any = null;
-    let selectedImage: File | null = null;
-    let folderId: string | null = null;
-    let folderData: any = null;
-
-    // Get folder ID from URL
+  <script define:vars={{ API_URL }}>
+    const API_BASE = API_URL;
     const pathParts = window.location.pathname.split('/');
-    folderId = pathParts[pathParts.length - 1];
+    const folderId = pathParts[pathParts.length - 1];
 
-    // Check auth and load data
+    let currentUser = null;
+
+    function getApiUrl() {
+      return API_BASE;
+    }
+
+    function getToken() {
+      return localStorage.getItem('auth_token');
+    }
+
+    function getAuthHeaders() {
+      const token = getToken();
+      return token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+    }
+
+    async function apiCall(endpoint, options = {}) {
+      const res = await fetch(`${getApiUrl()}${endpoint}`, {
+        ...options,
+        headers: { ...getAuthHeaders(), ...options.headers }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'API error');
+      return data;
+    }
+
     async function init() {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
+      const token = getToken();
+      if (!token) {
         window.location.href = '/login';
         return;
       }
 
-      currentUser = session.user;
+      try {
+        const { user } = await apiCall('/auth/me');
+        currentUser = user;
 
-      // Load folder info
-      const { data: folder, error } = await supabase
-        .from('folders')
-        .select('*')
-        .eq('id', folderId)
-        .single();
+        const { folders } = await apiCall('/folders');
+        const folder = folders.find(f => f.id === folderId);
+        
+        if (!folder) {
+          window.location.href = '/dashboard';
+          return;
+        }
 
-      if (error || !folder) {
-        window.location.href = '/dashboard';
-        return;
+        document.getElementById('folder-title').textContent = folder.name;
+        document.getElementById('folder-role').textContent = folder.is_owner ? 'Owner' : 'Member';
+        document.getElementById('task-folder-id').value = folderId;
+
+        await loadTasks();
+      } catch (err) {
+        console.error('Error:', err);
+        window.location.href = '/login';
       }
-
-      folderData = folder;
-      
-      // Check access
-      const { data: membership } = await supabase
-        .from('folder_members')
-        .select('role')
-        .eq('folder_id', folderId)
-        .eq('user_id', currentUser.id)
-        .single();
-
-      const isOwner = folder.owner_id === currentUser.id;
-      
-      if (!membership && !isOwner) {
-        window.location.href = '/dashboard';
-        return;
-      }
-
-      document.getElementById('folder-title')!.textContent = folder.name;
-      document.getElementById('folder-role')!.textContent = isOwner ? 'Owner' : `Member (${membership?.role || 'member'})`;
-      (document.getElementById('task-folder-id') as HTMLInputElement).value = folderId!;
-
-      await loadTasks();
     }
 
-    // Load tasks for this folder
     async function loadTasks() {
-      const { data: tasks, error } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('folder_id', folderId)
-        .order('due_date', { ascending: true });
-
-      if (error) {
-        console.error('Error loading tasks:', error);
-        return;
+      try {
+        const { tasks } = await apiCall(`/tasks?folder_id=${folderId}`);
+        renderTasks(tasks || []);
+      } catch (err) {
+        console.error('Error loading tasks:', err);
       }
-
-      renderTasks(tasks || []);
     }
 
-    // Render tasks
-    function renderTasks(tasks: any[]) {
-      const container = document.getElementById('tasks-list')!;
-      const empty = document.getElementById('tasks-empty')!;
+    function renderTasks(tasks) {
+      const container = document.getElementById('tasks-list');
+      const empty = document.getElementById('tasks-empty');
 
-      if (tasks.length === 0) {
+      if (!tasks || tasks.length === 0) {
         container.innerHTML = '';
         empty.classList.remove('hidden');
         return;
@@ -280,167 +231,98 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
             <span class="font-mono text-xs ${new Date(task.due_date) < new Date() ? 'text-red-600' : ''}">
               DUE: ${task.due_date}
             </span>
-            ${task.image_url ? '<span class="font-mono text-xs">📎</span>' : ''}
           </div>
-          ${task.image_url ? `
-            <div class="mt-2">
-              <img src="${task.image_url}" class="w-full h-24 object-cover border border-black" />
-            </div>
-          ` : ''}
         </div>
       `).join('');
 
-      // Add click handlers for editing
       container.querySelectorAll('.task-card').forEach(card => {
         card.addEventListener('click', (e) => {
-          if ((e.target as HTMLElement).classList.contains('task-checkbox')) return;
-          const taskId = (card as HTMLElement).dataset.taskId;
-          editTask(taskId!);
+          if (e.target.classList.contains('task-checkbox')) return;
+          const taskId = card.dataset.taskId;
+          editTask(taskId);
         });
       });
 
-      // Add checkbox handlers
       container.querySelectorAll('.task-checkbox').forEach(checkbox => {
         checkbox.addEventListener('change', async (e) => {
-          const taskId = (e.target as HTMLInputElement).dataset.taskId;
-          const completed = (e.target as HTMLInputElement).checked;
-          await supabase.from('tasks').update({ completed }).eq('id', taskId);
+          const taskId = e.target.dataset.taskId;
+          const completed = e.target.checked;
+          await apiCall(`/tasks/${taskId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ completed })
+          });
         });
       });
     }
 
-    // Edit task
-    async function editTask(taskId: string) {
-      const { data: task } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('id', taskId)
-        .single();
-
+    async function editTask(taskId) {
+      const { tasks } = await apiCall(`/tasks?folder_id=${folderId}`);
+      const task = tasks.find(t => t.id === taskId);
       if (!task) return;
 
-      document.getElementById('task-modal-title')!.textContent = 'EDIT TASK';
-      (document.getElementById('task-id') as HTMLInputElement).value = task.id;
-      (document.getElementById('task-title') as HTMLInputElement).value = task.title;
-      (document.getElementById('task-description') as HTMLInputElement).value = task.description || '';
-      (document.getElementById('task-due-date') as HTMLInputElement).value = task.due_date;
-      
-      selectedImage = null;
-      if (task.image_url) {
-        document.getElementById('image-preview')!.classList.remove('hidden');
-        (document.getElementById('preview-img') as HTMLImageElement).src = task.image_url;
-        (document.getElementById('file-name') as HTMLElement).textContent = 'Existing image';
-      } else {
-        document.getElementById('image-preview')!.classList.add('hidden');
-        (document.getElementById('file-name') as HTMLElement).textContent = 'No file chosen';
-      }
+      document.getElementById('task-modal-title').textContent = 'EDIT TASK';
+      document.getElementById('task-id').value = task.id;
+      document.getElementById('task-title').value = task.title;
+      document.getElementById('task-description').value = task.description || '';
+      document.getElementById('task-due-date').value = task.due_date;
 
-      document.getElementById('task-modal')!.classList.remove('hidden');
+      document.getElementById('task-modal').classList.remove('hidden');
     }
 
-    // Helper: escape HTML
-    function escapeHtml(text: string): string {
+    function escapeHtml(text) {
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
     }
 
     // Event Listeners
-    document.getElementById('logout-btn')?.addEventListener('click', async () => {
-      await supabase.auth.signOut();
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      try {
+        await apiCall('/auth/logout', { method: 'POST' });
+      } catch (e) {}
+      localStorage.removeItem('auth_token');
       window.location.href = '/login';
     });
 
-    document.getElementById('add-task')?.addEventListener('click', () => {
-      document.getElementById('task-modal-title')!.textContent = 'ADD TASK';
-      (document.getElementById('task-id') as HTMLInputElement).value = '';
-      (document.getElementById('task-form') as HTMLFormElement).reset();
-      selectedImage = null;
-      document.getElementById('image-preview')!.classList.add('hidden');
-      document.getElementById('task-modal')!.classList.remove('hidden');
+    document.getElementById('add-task').addEventListener('click', () => {
+      document.getElementById('task-modal-title').textContent = 'ADD TASK';
+      document.getElementById('task-id').value = '';
+      document.getElementById('task-form').reset();
+      document.getElementById('task-modal').classList.remove('hidden');
     });
 
-    document.getElementById('cancel-task')?.addEventListener('click', () => {
-      document.getElementById('task-modal')!.classList.add('hidden');
+    document.getElementById('cancel-task').addEventListener('click', () => {
+      document.getElementById('task-modal').classList.add('hidden');
     });
 
-    // File input handler
-    document.getElementById('task-image')?.addEventListener('change', (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        selectedImage = file;
-        (document.getElementById('file-name') as HTMLElement).textContent = file.name;
-        
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          document.getElementById('image-preview')!.classList.remove('hidden');
-          (document.getElementById('preview-img') as HTMLImageElement).src = e.target?.result as string;
-        };
-        reader.readAsDataURL(file);
-      }
-    });
-
-    document.getElementById('remove-image')?.addEventListener('click', () => {
-      selectedImage = null;
-      (document.getElementById('task-image') as HTMLInputElement).value = '';
-      document.getElementById('image-preview')!.classList.add('hidden');
-      (document.getElementById('file-name') as HTMLElement).textContent = 'No file chosen';
-    });
-
-    // Task form submit
-    document.getElementById('task-form')?.addEventListener('submit', async (e) => {
+    document.getElementById('task-form').addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      const taskId = (document.getElementById('task-id') as HTMLInputElement).value;
-      const title = (document.getElementById('task-title') as HTMLInputElement).value;
-      const description = (document.getElementById('task-description') as HTMLInputElement).value;
-      const dueDate = (document.getElementById('task-due-date') as HTMLInputElement).value;
+      const taskId = document.getElementById('task-id').value;
+      const title = document.getElementById('task-title').value;
+      const description = document.getElementById('task-description').value;
+      const dueDate = document.getElementById('task-due-date').value;
 
-      let imageUrl: string | null = null;
-
-      // Upload image if selected
-      if (selectedImage) {
-        const fileName = `${currentUser.id}/${Date.now()}-${selectedImage.name}`;
-        const { data, error } = await supabase.storage
-          .from('task-images')
-          .upload(fileName, selectedImage);
-
-        if (!error && data) {
-          const { data: { publicUrl } } = supabase.storage
-            .from('task-images')
-            .getPublicUrl(fileName);
-          imageUrl = publicUrl;
+      try {
+        if (taskId) {
+          await apiCall(`/tasks/${taskId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ title, description, due_date: dueDate })
+          });
+        } else {
+          await apiCall('/tasks', {
+            method: 'POST',
+            body: JSON.stringify({ title, description, due_date: dueDate, folder_id: folderId })
+          });
         }
+
+        document.getElementById('task-modal').classList.add('hidden');
+        await loadTasks();
+      } catch (err) {
+        alert('Error: ' + err.message);
       }
-
-      const taskData: any = {
-        user_id: currentUser.id,
-        title,
-        description: description || null,
-        due_date: dueDate,
-        folder_id: folderId
-      };
-
-      if (imageUrl) {
-        taskData.image_url = imageUrl;
-      }
-
-      if (taskId) {
-        // Update existing task
-        if (!imageUrl) {
-          delete taskData.image_url;
-        }
-        await supabase.from('tasks').update(taskData).eq('id', taskId);
-      } else {
-        // Create new task
-        await supabase.from('tasks').insert(taskData);
-      }
-
-      document.getElementById('task-modal')!.classList.add('hidden');
-      await loadTasks();
     });
 
-    // Initialize
     init();
   </script>
 </BaseLayout>

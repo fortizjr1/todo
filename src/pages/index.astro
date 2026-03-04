@@ -4,18 +4,16 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
 <BaseLayout title="Task Manager">
   <script>
-    import { supabase } from '../lib/supabase';
-    
-    async function checkAuth() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        window.location.href = '/dashboard';
-      } else {
-        window.location.href = '/login';
-      }
+    function getToken() {
+      return localStorage.getItem('auth_token');
     }
     
-    checkAuth();
+    const token = getToken();
+    if (token) {
+      window.location.href = '/dashboard';
+    } else {
+      window.location.href = '/login';
+    }
   </script>
   
   <div class="min-h-screen flex items-center justify-center">
