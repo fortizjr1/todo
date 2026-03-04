@@ -89,9 +89,17 @@ CREATE POLICY "Users can delete own task images" ON storage.objects FOR DELETE
 -- ============================================
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+    user_username TEXT;
 BEGIN
+    -- Get username from metadata or generate from email
+    user_username := NEW.raw_user_meta_data->>'username';
+    IF user_username IS NULL OR user_username = '' THEN
+        user_username := COALESCE(NEW.email, 'user_' || LEFT(NEW.id::TEXT, 8));
+    END IF;
+    
     INSERT INTO public.profiles (id, username)
-    VALUES (NEW.id, NEW.raw_user_meta_data->>'username');
+    VALUES (NEW.id, user_username);
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
