@@ -2,7 +2,3 @@ name = "task-manager"
 compatibility_date = "2024-01-01"
 pages_build_output_dir = "./dist"
 command = "npm run build"
-
-[vars]
-PUBLIC_SUPABASE_URL = ""
-PUBLIC_SUPABASE_ANON_KEY = ""
